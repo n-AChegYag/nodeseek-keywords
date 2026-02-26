@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    image: nodeseek-keywords-bot
+    container_name: nodeseek-keywords-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # Persist the SQLite database across container restarts / rebuilds
+      - ./data:/app/data

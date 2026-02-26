@@ -1,0 +1,11 @@
+# Core Telegram bot framework (includes APScheduler for job_queue)
+python-telegram-bot[job-queue]==21.10
+
+# Async HTTP client for fetching the RSS feed
+aiohttp==3.11.12
+
+# RSS / Atom parser
+feedparser==6.0.11
+
+# .env file support
+python-dotenv==1.0.1
