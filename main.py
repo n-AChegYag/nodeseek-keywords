@@ -38,6 +38,9 @@ def main() -> None:
     app.add_handler(CommandHandler("list",       bot.cmd_list))
     app.add_handler(CommandHandler("categories", bot.cmd_categories))
     app.add_handler(CommandHandler("status",     bot.cmd_status))
+    app.add_handler(CommandHandler("pause",     bot.cmd_pause))
+    app.add_handler(CommandHandler("resume",    bot.cmd_resume))
+    app.add_handler(CommandHandler("history",   bot.cmd_history))
 
     # Schedule the RSS polling job
     app.job_queue.run_repeating(

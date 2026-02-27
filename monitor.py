@@ -5,6 +5,7 @@ No Telegram-specific code lives here — only data retrieval and pure matching.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional
 
 import aiohttp
@@ -52,22 +53,19 @@ async def fetch_entries(category: Optional[str] = None) -> list[dict]:
 
     Returns:
         List of dicts with keys: post_id, title, link, category, author.
+
+    Raises:
+        aiohttp.ClientError: On network or HTTP errors (caller handles alerting).
     """
     url = RSS_BASE_URL if category is None else f"{RSS_BASE_URL}?category={category}"
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(headers=_HEADERS, timeout=timeout) as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    logger.warning("RSS feed returned HTTP %d for %s", resp.status, url)
-                    return []
-                raw = await resp.text()
-    except aiohttp.ClientError as exc:
-        logger.error("Network error fetching RSS (%s): %s", url, exc)
-        return []
-    except Exception as exc:
-        logger.exception("Unexpected error fetching RSS (%s): %s", url, exc)
-        return []
+    timeout = aiohttp.ClientTimeout(total=30)
+    async with aiohttp.ClientSession(headers=_HEADERS, timeout=timeout) as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                raise aiohttp.ClientError(
+                    f"HTTP {resp.status} from {url}"
+                )
+            raw = await resp.text()
 
     feed = feedparser.parse(raw)
     entries: list[dict] = []
@@ -84,17 +82,30 @@ async def fetch_entries(category: Optional[str] = None) -> list[dict]:
 
         entries.append(
             {
-                "post_id": post_id,
-                "title":   entry.get("title", "").strip(),
-                "link":    entry.get("link", ""),
+                "post_id":  post_id,
+                "title":    entry.get("title", "").strip(),
+                "link":     entry.get("link", ""),
                 "category": cat,
-                "author":  entry.get("author", "").strip(),
+                "author":   entry.get("author", "").strip(),
             }
         )
 
     return entries
 
 
-def matches(title: str, keyword: str) -> bool:
-    """Case-insensitive substring match."""
+def matches(title: str, keyword: str, match_mode: str = "substring") -> bool:
+    """
+    Match a post title against a keyword.
+
+    Modes:
+        substring — case-insensitive substring search (default).
+        regex     — case-insensitive regular expression search.
+                    Invalid patterns are silently treated as non-matching.
+    """
+    if match_mode == "regex":
+        try:
+            return bool(re.search(keyword, title, re.IGNORECASE))
+        except re.error:
+            logger.warning("Invalid regex pattern %r — treating as non-matching", keyword)
+            return False
     return keyword.lower() in title.lower()
